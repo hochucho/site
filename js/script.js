@@ -1,6 +1,24 @@
 // =====================
 // ALIEN BUTTON
 // =====================
+
+function showBookmarkHint() {
+  const hint = document.getElementById("bookmarkHint");
+
+  const isMac = (navigator.userAgentData && navigator.userAgentData.platform === "macOS")
+    || navigator.userAgent.includes("Mac");
+
+  const shortcut = isMac ? 'Cmd + D' : 'Ctrl + D';
+
+  hint.textContent = `ANCHOR THIS SIGNAL (${shortcut})`;
+  hint.classList.add("show");
+
+  setTimeout(() => {
+    hint.classList.remove("show");
+  }, 7000);
+}
+
+
 const btn = document.getElementById("alienBtn");
 
 const idleTexts = [
@@ -62,7 +80,8 @@ btn.addEventListener("click", () => {
 
       // здесь можно открыть сайт 👇
       setTimeout(() => {
-        window.location.href = "https://example.com";
+        //window.location.href = "https://example.com";
+        showBookmarkHint();
       }, 1000);
     }
   }, 400);
@@ -191,8 +210,17 @@ class Agent {
     }
 }
 
+function getAgentCount() {
+  const width = window.innerWidth;
+
+  if (width < 500) return 60;     // маленькие телефоны
+  if (width < 900) return 100;    // планшеты
+  return 180;                     // десктоп
+}
+
+const NUM_AGENTS = getAgentCount();
 const agents = [];
-for (let i = 0; i < 180; i++) agents.push(new Agent(i));
+for (let i = 0; i < NUM_AGENTS; i++) agents.push(new Agent(i));
 
 // =====================
 // ORBIT SYSTEM

@@ -51,3 +51,22 @@ body {
   border-color: #ffff00;
   text-shadow: 0 0 12px #ffff00;
 }
+
+
+.hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: black;
+  color: #00ffcc;
+  border: 1px solid #00ffcc;
+  padding: 10px 20px;
+  font-family: monospace;
+  opacity: 0;
+  transition: 0.3s;
+}
+
+.hint.show {
+  opacity: 1;
+}
