@@ -324,6 +324,8 @@ canvas.addEventListener('pointermove', (e) => {
 //canvas.addEventListener('mousemove', (e) => {
     mouse.x = e.clientX;
     mouse.y = e.clientY;
+
+    handleMove(x, y);
 });
 
 // =====================
