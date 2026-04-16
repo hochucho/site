@@ -66,6 +66,7 @@ btn.addEventListener("click", () => {
       }, 1000);
     }
   }, 400);
+
 });
 
 const canvas = document.getElementById('canvas');
