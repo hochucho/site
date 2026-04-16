@@ -320,7 +320,7 @@ function updateAgents() {
     }
 }
 
-canvas.addEventListener('mousemove', (e) => {
+canvas.addEventListener('pointermove', (e) => {
     mouse.x = e.clientX;
     mouse.y = e.clientY;
 });
