@@ -1,3 +1,73 @@
+// =====================
+// ALIEN BUTTON
+// =====================
+const btn = document.getElementById("alienBtn");
+
+const idleTexts = [
+  "Receive Transmission",
+  "Join the Event Horizon",
+  "Start the Anomaly",
+  "Summon Something Questionable",
+  "Press at Your Own Risk"
+];
+
+const hoverTexts = [
+  "Are you sure?",
+  "This could be dangerous...",
+  "No turning back",
+  "They are listening...",
+  "Last warning"
+];
+
+const loadingTexts = [
+  "Contacting...",
+  "Opening portal...",
+  "Distorting reality...",
+  "Summoning...",
+  "Signal detected..."
+];
+
+const finalTexts = [
+  "They have arrived 👽",
+  "Event horizon reached",
+  "Anomaly active",
+  "Something answered...",
+  "Too late now"
+];
+
+// случайный стартовый текст
+btn.textContent = idleTexts[Math.floor(Math.random() * idleTexts.length)];
+
+btn.addEventListener("mouseenter", () => {
+  btn.textContent = hoverTexts[Math.floor(Math.random() * hoverTexts.length)];
+});
+
+btn.addEventListener("mouseleave", () => {
+  btn.textContent = idleTexts[Math.floor(Math.random() * idleTexts.length)];
+});
+
+btn.addEventListener("click", () => {
+  btn.classList.add("active");
+
+  let i = 0;
+  btn.textContent = loadingTexts[i];
+
+  const interval = setInterval(() => {
+    i++;
+    if (i < loadingTexts.length) {
+      btn.textContent = loadingTexts[i];
+    } else {
+      clearInterval(interval);
+      btn.textContent = finalTexts[Math.floor(Math.random() * finalTexts.length)];
+
+      // здесь можно открыть сайт 👇
+      setTimeout(() => {
+        window.location.href = "https://example.com";
+      }, 1000);
+    }
+  }, 400);
+});
+
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 

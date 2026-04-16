@@ -25,3 +25,29 @@ body {
     display: inline-block;
     position: relative;
 }
+
+.alien-btn {
+  background: black;
+  color: #00ffcc;
+  border: 1px solid #00ffcc;
+  padding: 12px 24px;
+  font-family: monospace;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+}
+
+.alien-btn:hover {
+  color: #ff00ff;
+  border-color: #ff00ff;
+  text-shadow: 0 0 8px #ff00ff;
+}
+
+.alien-btn.active {
+  color: #ffff00;
+  border-color: #ffff00;
+  text-shadow: 0 0 12px #ffff00;
+}
