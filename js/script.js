@@ -260,8 +260,8 @@ class Agent {
 function getAgentCount() {
   const width = window.innerWidth;
 
-  if (width < 500) return 60;     // маленькие телефоны
-  if (width < 900) return 100;    // планшеты
+  if (width < 500) return 30;     // маленькие телефоны
+  if (width < 900) return 50;    // планшеты
   return 180;                     // десктоп
 }
 
