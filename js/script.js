@@ -1,4 +1,4 @@
-// =====================
+﻿// =====================
 // ALIEN BUTTON
 // =====================
 
@@ -244,7 +244,7 @@ class Agent {
         this.vx = (Math.random() - 0.5) * 2;
         this.vy = (Math.random() - 0.5) * 2;
         this.size = 2 + Math.random() * 4;
-        this.color = `hsl(${Math.random()*360}, 80%, 60%)`;
+        this.baseHue = Math.random() * 360;
     }
 
     update() {
@@ -267,10 +267,16 @@ class Agent {
         if (this.y > canvas.height) this.y = 0;
     }
 
-    draw() {
+    draw(glitchAmount = 0) {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2.0);
-        ctx.fillStyle = this.color;
+        const alertHue = 12 + (this.id % 5) * 8;
+        const hueShift = getHueDelta(this.baseHue, alertHue) * glitchAmount;
+        const hue = this.baseHue + hueShift;
+        const saturation = 80 + glitchAmount * 12;
+        const lightness = 60 + glitchAmount * 5;
+
+        ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
         ctx.fill();
     }
 }
@@ -286,6 +292,83 @@ function getAgentCount() {
 const NUM_AGENTS = getAgentCount();
 const agents = [];
 for (let i = 0; i < NUM_AGENTS; i++) agents.push(new Agent(i));
+
+// =====================
+// GLITCH BURST
+// =====================
+const GLITCH_INTERVAL_MIN = 12000;
+const GLITCH_INTERVAL_MAX = 24000;
+const GLITCH_DURATION_MIN = 1000;
+const GLITCH_DURATION_MAX = 2500;
+
+const glitchState = {
+    active: false,
+    amount: 0,
+    progress: 0,
+    startedAt: 0,
+    duration: 0,
+    nextBurstAt: 0,
+    clock: 0
+};
+
+function randomRange(min, max) {
+    return min + Math.random() * (max - min);
+}
+
+function clamp01(value) {
+    return Math.max(0, Math.min(1, value));
+}
+
+function getHueDelta(fromHue, toHue) {
+    return ((toHue - fromHue + 540) % 360) - 180;
+}
+
+function scheduleNextGlitch(now) {
+    glitchState.nextBurstAt = now + randomRange(GLITCH_INTERVAL_MIN, GLITCH_INTERVAL_MAX);
+}
+
+function updateGlitch(now) {
+    glitchState.clock = now * 0.045;
+
+    if (!glitchState.active && now >= glitchState.nextBurstAt) {
+        glitchState.active = true;
+        glitchState.startedAt = now;
+        glitchState.duration = randomRange(GLITCH_DURATION_MIN, GLITCH_DURATION_MAX);
+    }
+
+    if (!glitchState.active) {
+        glitchState.amount = 0;
+        glitchState.progress = 0;
+        return;
+    }
+
+    const progress = (now - glitchState.startedAt) / glitchState.duration;
+
+    if (progress >= 1) {
+        glitchState.active = false;
+        glitchState.amount = 0;
+        glitchState.progress = 0;
+        scheduleNextGlitch(now);
+        return;
+    }
+
+    const pulse = Math.sin(progress * Math.PI);
+    const flicker = 0.88 + 0.12 * Math.sin(now * 0.11);
+    glitchState.progress = progress;
+    glitchState.amount = Math.pow(pulse, 1.35) * flicker;
+}
+
+scheduleNextGlitch(performance.now());
+
+function getLetterGlitchOffset(index, glitchAmount = glitchState.amount, glitchClock = glitchState.clock) {
+    const phase = glitchClock + index * 1.7;
+
+    return {
+        phase,
+        shiftX: glitchAmount > 0 ? Math.sin(phase) * 3.9 * glitchAmount : 0,
+        shiftY: glitchAmount > 0 ? Math.cos(phase * 0.7) * 1.25 * glitchAmount : 0
+    };
+}
 
 // =====================
 // ORBIT SYSTEM
@@ -307,6 +390,8 @@ function getCenter() {
 
 function updateLetters() {
     const center = getCenter();
+    const glitchAmount = glitchState.amount;
+    const glitchClock = glitchState.clock;
 
     if (!pointerActive) {
         orbitMode = false;
@@ -354,8 +439,23 @@ function updateLetters() {
 
         const ox = l.x - l.homeX;
         const oy = l.y - l.homeY;
+        const { phase, shiftX, shiftY } = getLetterGlitchOffset(i, glitchAmount, glitchClock);
+        const warmBlend = Math.min(1, glitchAmount * 0.65);
+        const red = 255;
+        const green = Math.round(255 - 48 * warmBlend);
+        const blue = Math.round(255 - 74 * warmBlend);
+        const redGhost = Math.sin(phase * 1.8) * 4.8 * glitchAmount;
+        const cyanGhost = -Math.cos(phase * 1.25) * 3.8 * glitchAmount;
+        const ghostAlpha = 0.42 * glitchAmount;
+        const haloAlpha = 0.18 * glitchAmount;
+        const opacity = 1 - 0.08 * glitchAmount + 0.06 * Math.sin(phase * 2.1) * glitchAmount;
 
-        l.el.style.transform = `translate(${ox}px, ${oy}px)`;
+        l.el.style.transform = `translate(${ox + shiftX}px, ${oy + shiftY}px)`;
+        l.el.style.color = `rgb(${red}, ${green}, ${blue})`;
+        l.el.style.opacity = `${Math.max(0.84, Math.min(1, opacity))}`;
+        l.el.style.textShadow = glitchAmount > 0.04
+            ? `${redGhost}px 0 0 rgba(255, 84, 54, ${ghostAlpha}), ${cyanGhost}px 0 0 rgba(84, 214, 255, ${ghostAlpha * 0.7}), 0 0 ${7 * glitchAmount}px rgba(255, 96, 64, ${haloAlpha})`
+            : 'none';
     }
 }
 
@@ -364,6 +464,9 @@ function updateLetters() {
 // =====================
 function updateAgents() {
     const center = getCenter();
+    const glitchAmount = glitchState.amount;
+    const glitchClock = glitchState.clock;
+    const glitchProgress = glitchState.progress;
 
     for (let idx = 0; idx < agents.length; idx++) {
         const a = agents[idx];
@@ -400,6 +503,43 @@ function updateAgents() {
             if (md < 200) {
                 a.vx -= mx * 0.015/2;
                 a.vy -= my * 0.015/2;
+            }
+        }
+
+        if (glitchAmount > 0.05 && letters.length > 0) {
+            const targetIndex = idx % letters.length;
+            const targetLetter = letters[targetIndex];
+            const { shiftX, shiftY } = getLetterGlitchOffset(targetIndex, glitchAmount, glitchClock);
+            const targetX = targetLetter.x + shiftX;
+            const targetY = targetLetter.y + shiftY;
+            const dx = targetX - a.x;
+            const dy = targetY - a.y;
+            const d = Math.sqrt(dx*dx + dy*dy) + 0.001;
+            const swirlDirection = idx % 2 === 0 ? 1 : -1;
+            const attractFade = 1 - clamp01(glitchProgress / 0.24);
+            const releasePhase = clamp01((glitchProgress - 0.66) / 0.1);
+            const releasePulse = Math.sin(releasePhase * Math.PI);
+
+            if (attractFade > 0) {
+                const pullStrength = (0.012 + glitchAmount * 0.5*200) * attractFade * Math.min(1.05, d / 170);
+                const swirlStrength = (0.04 + glitchAmount * 0.18*200) * attractFade * Math.min(0.85, d / 170);
+
+                a.vx += (dx / d) * pullStrength;
+                a.vy += (dy / d) * pullStrength;
+                a.vx += (-dy / d) * swirlStrength * swirlDirection;
+                a.vy += (dx / d) * swirlStrength * swirlDirection;
+            }
+
+            if (releasePulse > 0) {
+                const burstStrength = (0.045 + glitchAmount * 0.19) * releasePulse*120;
+                const centerDx = a.x - center.x;
+                const centerDy = a.y - center.y;
+                const centerDist = Math.sqrt(centerDx*centerDx + centerDy*centerDy) + 0.001;
+
+                a.vx -= (dx / d) * burstStrength;
+                a.vy -= (dy / d) * burstStrength;
+                a.vx += (centerDx / centerDist) * burstStrength * 0.55;
+                a.vy += (centerDy / centerDist) * burstStrength * 0.55;
             }
         }
     }
@@ -553,6 +693,7 @@ function getNeighbors(x, y) {
 function drawConnections() {
     const maxDist = 90; // максимальное расстояние для соединения
     const processed = new Set();
+    const glitchAmount = glitchState.amount;
 
     for (const a of agents) {
         const neighbors = getNeighbors(a.x, a.y);
@@ -570,9 +711,24 @@ function drawConnections() {
             const d = Math.sqrt(dx*dx + dy*dy);
 
             if (d < maxDist) {
-                ctx.strokeStyle = `rgba(${255 * (d/maxDist)},${255-255 * (d/maxDist)},100,${1 - (d/maxDist)**3})`;
-                //ctx.strokeStyle = `rgba(255,50,50,${1 - (d/maxDist)**3})`;
-                ctx.lineWidth = 0.3;
+                const distanceRatio = d / maxDist;
+                const proximity = 1 - distanceRatio;
+                let red = 255 * distanceRatio;
+                let green = 255 - 255 * distanceRatio;
+                let blue = 100;
+                let alpha = 1 - distanceRatio**3;
+                let lineWidth = 0.3;
+
+                if (glitchAmount > 0) {
+                    red = Math.min(255, red + 90 * glitchAmount + 30 * proximity * glitchAmount);
+                    green = Math.max(90, green - 80 * glitchAmount);
+                    blue = Math.max(54, blue - 36 * glitchAmount);
+                    alpha = Math.min(0.9, alpha + 0.22 * glitchAmount);
+                    lineWidth += 0.22 * glitchAmount;
+                }
+
+                ctx.strokeStyle = `rgba(${red},${green},${blue},${alpha})`;
+                ctx.lineWidth = lineWidth;
                 ctx.beginPath();
                 ctx.moveTo(a.x, a.y);
                 ctx.lineTo(b.x, b.y);
@@ -580,12 +736,15 @@ function drawConnections() {
             }
         }
     }
+
 }
 
 // =====================
 // LOOP
 // =====================
-function animate() {
+function animate(now = 0) {
+    updateGlitch(now);
+
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -593,7 +752,7 @@ function animate() {
 
     for (const a of agents) {
         a.update();
-        a.draw();
+        a.draw(glitchState.amount);
     }
 
     buildGrid();

@@ -42,6 +42,7 @@ body {
 .char {
     display: inline-block;
     position: relative;
+    will-change: transform, opacity, text-shadow;
 }
 
 .alien-btn {
