@@ -350,8 +350,8 @@ function updateAgents() {
             const d = Math.sqrt(dx*dx + dy*dy);
 
             if (d < 1000 || true) {
-                a.vx += dx * 0.03; // * Math.random();
-                a.vy += dy * 0.03; // * Math.random();
+                a.vx += dx * 0.02; // * Math.random();
+                a.vy += dy * 0.02; // * Math.random();
             }
             continue;
         }
