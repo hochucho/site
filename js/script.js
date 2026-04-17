@@ -26,7 +26,25 @@ const idleTexts = [
   "Join the Event Horizon",
   "Start the Anomaly",
   "Summon Something Questionable",
-  "Press at Your Own Risk"
+  "Press at Your Own Risk",
+  "Decrypt Signal",
+  "Open the Portal",
+  "Distort Reality",
+  "Contact the Unknown",
+  "They Are Waiting...",
+  "Activate the Supervoid",
+  "Embrace the Void",
+  "Unleash the Anomaly",
+  "Initiate Contact",
+  "The Signal is Calling",
+  "Something is Out There...",
+  "The Unknown Beckons",
+  "Can You Hear It?",
+  "The Event Horizon is Near",
+  "They Are Watching...",
+  "Embrace the Darkness",
+  "The Anomaly is Alive",
+  "They Are Already Here..."
 ];
 
 const hoverTexts = [
@@ -34,7 +52,18 @@ const hoverTexts = [
   "This could be dangerous...",
   "No turning back",
   "They are listening...",
-  "Last warning"
+  "Last warning",
+  "The void is calling",
+  "Can you feel it?",
+  "The event horizon is near",
+  "Something is watching you...",
+  "The unknown beckons",
+  "Embrace the darkness",
+  "The anomaly is alive",
+  "They are already here...",
+  "The signal is getting stronger",
+  "The void is hungry",
+  "Can you hear it?"
 ];
 
 const loadingTexts = [
@@ -50,8 +79,18 @@ const finalTexts = [
   "Event horizon reached",
   "Anomaly active",
   "Something answered...",
-  "Too late now"
+  "Too late now",
+  "Welcome to the void",
+  "The unknown is here",
+  "Embrace the supervoid",
+  "Reality is bending",
+  "They are among us...",
+  "The signal is strong",
+  "The void is alive",
+  "Contact established"
 ];
+
+let runaway = false;
 
 // случайный стартовый текст
 btn.textContent = idleTexts[Math.floor(Math.random() * idleTexts.length)];
@@ -65,7 +104,11 @@ btn.addEventListener("mouseleave", () => {
 });
 
 btn.addEventListener("click", () => {
+  if (runaway) return;
+
+  runaway = true;
   btn.classList.add("active");
+
 
   let i = 0;
   btn.textContent = loadingTexts[i];
@@ -82,9 +125,13 @@ btn.addEventListener("click", () => {
       setTimeout(() => {
         //window.location.href = "https://example.com";
         showBookmarkHint();
+        runaway = false;
+        btn.classList.remove("active");
       }, 1000);
     }
   }, 400);
+
+  //runaway = false;
 
 });
 
@@ -296,6 +343,18 @@ function updateAgents() {
 
     for (let idx = 0; idx < agents.length; idx++) {
         const a = agents[idx];
+
+        if (runaway) {
+            const dx = center.x - a.x;
+            const dy = center.y - a.y;
+            const d = Math.sqrt(dx*dx + dy*dy);
+
+            if (d < 1000 || true) {
+                a.vx += dx * 0.03; // * Math.random();
+                a.vy += dy * 0.03; // * Math.random();
+            }
+            continue;
+        }
 
         // Только 10% агентов притягиваются к тексту
         if (idx < agents.length * 0.5) {
