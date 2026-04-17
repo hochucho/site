@@ -4,11 +4,29 @@
 
 function showBookmarkHint() {
   const hint = document.getElementById("bookmarkHint");
+  const ua = navigator.userAgent || "";
+  const isTouchDevice = window.matchMedia("(pointer: coarse)").matches
+    || navigator.maxTouchPoints > 0;
+  const isIOS = /iPad|iPhone|iPod/.test(ua)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(ua);
 
   const isMac = (navigator.userAgentData && navigator.userAgentData.platform === "macOS")
-    || navigator.userAgent.includes("Mac");
+    || ua.includes("Mac");
 
-  const shortcut = isMac ? 'Cmd + D' : 'Ctrl + D';
+  let shortcut = "Ctrl + D";
+
+  if (isTouchDevice) {
+    if (isIOS) {
+      shortcut = "Share -> Add to Home Screen";
+    } else if (isAndroid) {
+      shortcut = "Menu -> Add to Home screen";
+    } else {
+      shortcut = "Browser menu -> Add to Home screen";
+    }
+  } else if (isMac) {
+    shortcut = "Cmd + D";
+  }
 
   hint.textContent = `ANCHOR THIS SIGNAL (${shortcut})`;
   hint.classList.add("show");
@@ -273,6 +291,8 @@ for (let i = 0; i < NUM_AGENTS; i++) agents.push(new Agent(i));
 // ORBIT SYSTEM
 // =====================
 let mouse = {x: 0, y: 0};
+let pointerActive = false;
+let activeTouchPointerId = null;
 let orbitMode = false;
 
 const ORBIT_ON = 160;
@@ -288,12 +308,16 @@ function getCenter() {
 function updateLetters() {
     const center = getCenter();
 
-    const dxm = mouse.x - center.x;
-    const dym = mouse.y - center.y;
-    const dist = Math.sqrt(dxm*dxm + dym*dym);
+    if (!pointerActive) {
+        orbitMode = false;
+    } else {
+        const dxm = mouse.x - center.x;
+        const dym = mouse.y - center.y;
+        const dist = Math.sqrt(dxm*dxm + dym*dym);
 
-    if (!orbitMode && dist < ORBIT_ON) orbitMode = true;
-    if (orbitMode && dist > ORBIT_OFF) orbitMode = false;
+        if (!orbitMode && dist < ORBIT_ON) orbitMode = true;
+        if (orbitMode && dist > ORBIT_OFF) orbitMode = false;
+    }
 
     const n = letters.length;
 
@@ -304,7 +328,7 @@ function updateLetters() {
         let ty = l.homeY;
 
         // Отталкивание от курсора
-        if (orbitMode) {
+        if (pointerActive && orbitMode) {
             const dx = l.x - mouse.x;
             const dy = l.y - mouse.y;
             const d = Math.sqrt(dx*dx + dy*dy);
@@ -368,24 +392,120 @@ function updateAgents() {
             }
         }
 
-        const mx = mouse.x - a.x;
-        const my = mouse.y - a.y;
-        const md = Math.sqrt(mx*mx + my*my);
+        if (pointerActive) {
+            const mx = mouse.x - a.x;
+            const my = mouse.y - a.y;
+            const md = Math.sqrt(mx*mx + my*my);
 
-        if (md < 200) {
-            a.vx -= mx * 0.015/2;
-            a.vy -= my * 0.015/2;
+            if (md < 200) {
+                a.vx -= mx * 0.015/2;
+                a.vy -= my * 0.015/2;
+            }
         }
     }
 }
 
-canvas.addEventListener('pointermove', (e) => {
-//canvas.addEventListener('mousemove', (e) => {
-    mouse.x = e.clientX;
-    mouse.y = e.clientY;
+function setPointerPosition(clientX, clientY) {
+    mouse.x = clientX;
+    mouse.y = clientY;
+    pointerActive = true;
+}
 
-    handleMove(x, y);
-});
+function clearPointerPosition(pointerId = null) {
+    if (pointerId !== null && activeTouchPointerId !== null && pointerId !== activeTouchPointerId) {
+        return;
+    }
+
+    pointerActive = false;
+    activeTouchPointerId = null;
+    orbitMode = false;
+}
+
+function handlePointerDown(e) {
+    if (e.pointerType === 'touch') {
+        if (activeTouchPointerId !== null && activeTouchPointerId !== e.pointerId) {
+            return;
+        }
+
+        activeTouchPointerId = e.pointerId;
+
+        if (canvas.setPointerCapture) {
+            try {
+                canvas.setPointerCapture(e.pointerId);
+            } catch (err) {
+                console.debug('Pointer capture skipped:', err);
+            }
+        }
+    }
+
+    setPointerPosition(e.clientX, e.clientY);
+}
+
+function handlePointerMove(e) {
+    if (e.pointerType === 'touch' && activeTouchPointerId !== null && e.pointerId !== activeTouchPointerId) {
+        return;
+    }
+
+    setPointerPosition(e.clientX, e.clientY);
+}
+
+function handlePointerUp(e) {
+    if (e.pointerType !== 'touch') return;
+
+    if (canvas.releasePointerCapture) {
+        try {
+            canvas.releasePointerCapture(e.pointerId);
+        } catch (err) {
+            console.debug('Pointer release skipped:', err);
+        }
+    }
+
+    clearPointerPosition(e.pointerId);
+}
+
+if ('PointerEvent' in window) {
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    canvas.addEventListener('pointermove', handlePointerMove);
+    canvas.addEventListener('pointerup', handlePointerUp);
+    canvas.addEventListener('pointercancel', handlePointerUp);
+    canvas.addEventListener('pointerleave', (e) => {
+        if (e.pointerType === 'mouse') {
+            clearPointerPosition();
+        }
+    });
+} else {
+    canvas.addEventListener('mousemove', (e) => {
+        setPointerPosition(e.clientX, e.clientY);
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        clearPointerPosition();
+    });
+
+    const syncTouch = (e) => {
+        const touch = e.touches[0];
+        if (!touch) return;
+        setPointerPosition(touch.clientX, touch.clientY);
+    };
+
+    canvas.addEventListener('touchstart', (e) => {
+        syncTouch(e);
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        syncTouch(e);
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => {
+        clearPointerPosition();
+    });
+
+    canvas.addEventListener('touchcancel', () => {
+        clearPointerPosition();
+    });
+}
 
 // =====================
 // SPATIAL HASHING / GRID
