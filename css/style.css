@@ -70,3 +70,19 @@ body {
 .hint.show {
   opacity: 1;
 }
+
+.email-btn {
+  position: fixed;   /* наследуется от alien-btn, но можно продублировать */
+  bottom: 20px;
+  left: 20px;
+  top: auto;         /* важно: сбрасываем top, чтобы не конфликтовало */
+  text-decoration: none;
+  display: inline-block;
+}
+
+.email-btn:hover {
+  transform: translateY(-6px);
+  color: #ffff00;
+  border-color: #ffff00;
+  text-shadow: 0 0 8px #ffff00;
+}
