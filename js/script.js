@@ -236,47 +236,77 @@ window.addEventListener('resize', updateLetterPositions);
 // =====================
 // AGENTS
 // =====================
+const DEPTH_RANGE = 1100;
+const DEPTH_CENTER = DEPTH_RANGE / 2;
+const CAMERA_DISTANCE = 750;
+
+function projectAgent(agent) {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const depth = agent.z - DEPTH_CENTER;
+    const scale = CAMERA_DISTANCE / (CAMERA_DISTANCE + depth);
+
+    agent.screenX = centerX + (agent.x - centerX) * scale;
+    agent.screenY = centerY + (agent.y - centerY) * scale;
+    agent.screenScale = scale;
+    agent.depthAlpha = Math.max(0.15, Math.min(1, 0.35 + scale * 0.55));
+}
+
 class Agent {
     constructor(id) {
         this.id = id;
         this.x = Math.random() * canvas.width;
         this.y = Math.random() * canvas.height;
+        this.z = Math.random() * DEPTH_RANGE;
         this.vx = (Math.random() - 0.5) * 2;
         this.vy = (Math.random() - 0.5) * 2;
+        this.vz = (Math.random() - 0.5) * 0.9;
         this.size = 2 + Math.random() * 4;
         this.baseHue = Math.random() * 360;
+        this.screenX = this.x;
+        this.screenY = this.y;
+        this.screenScale = 1;
+        this.depthAlpha = 1;
     }
 
     update() {
         this.x += this.vx;
         this.y += this.vy;
+        this.z += this.vz;
 
         this.vx += (Math.random() - 0.5) * 0.15;
         this.vy += (Math.random() - 0.5) * 0.15;
+        this.vz += (Math.random() - 0.5) * 0.03;
 
-        const speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+        const speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy + this.vz*this.vz);
         const maxSpeed = 2;
         if (speed > maxSpeed) {
             this.vx *= maxSpeed / speed;
             this.vy *= maxSpeed / speed;
+            this.vz *= maxSpeed / speed;
         }
 
         if (this.x < 0) this.x = canvas.width;
         if (this.x > canvas.width) this.x = 0;
         if (this.y < 0) this.y = canvas.height;
         if (this.y > canvas.height) this.y = 0;
+        if (this.z < 0) this.z = DEPTH_RANGE;
+        if (this.z > DEPTH_RANGE) this.z = 0;
+
+        projectAgent(this);
     }
 
     draw(glitchAmount = 0) {
+        const renderSize = this.size * this.screenScale;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2.0);
+        ctx.arc(this.screenX, this.screenY, renderSize, 0, Math.PI * 2.0);
         const alertHue = 12 + (this.id % 5) * 8;
         const hueShift = getHueDelta(this.baseHue, alertHue) * glitchAmount;
         const hue = this.baseHue + hueShift;
         const saturation = 80 + glitchAmount * 12;
-        const lightness = 60 + glitchAmount * 5;
+        const lightness = 60 + glitchAmount * 5 + this.screenScale * 7;
 
-        ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        ctx.fillStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, ${this.depthAlpha})`;
         ctx.fill();
     }
 }
@@ -663,7 +693,7 @@ function buildGrid() {
     grid = {};
 
     for (const a of agents) {
-        const key = getGridKey(a.x, a.y);
+        const key = getGridKey(a.screenX, a.screenY);
         if (!grid[key]) grid[key] = [];
         grid[key].push(a);
     }
@@ -696,7 +726,7 @@ function drawConnections() {
     const glitchAmount = glitchState.amount;
 
     for (const a of agents) {
-        const neighbors = getNeighbors(a.x, a.y);
+        const neighbors = getNeighbors(a.screenX, a.screenY);
 
         for (const b of neighbors) {
             // Проверяем только пары где a.id < b.id, чтобы не рисовать линию дважды
@@ -706,18 +736,19 @@ function drawConnections() {
             if (processed.has(pairKey)) continue;
             processed.add(pairKey);
 
-            const dx = a.x - b.x;
-            const dy = a.y - b.y;
+            const dx = a.screenX - b.screenX;
+            const dy = a.screenY - b.screenY;
             const d = Math.sqrt(dx*dx + dy*dy);
 
             if (d < maxDist) {
                 const distanceRatio = d / maxDist;
                 const proximity = 1 - distanceRatio;
+                const depthBlend = Math.min(a.depthAlpha, b.depthAlpha);
                 let red = 255 * distanceRatio;
                 let green = 255 - 255 * distanceRatio;
                 let blue = 100;
-                let alpha = 1 - distanceRatio**3;
-                let lineWidth = 0.3;
+                let alpha = (1 - distanceRatio**3) * depthBlend;
+                let lineWidth = 0.3 * Math.min(a.screenScale, b.screenScale);
 
                 if (glitchAmount > 0) {
                     red = Math.min(255, red + 90 * glitchAmount + 30 * proximity * glitchAmount);
@@ -730,8 +761,8 @@ function drawConnections() {
                 ctx.strokeStyle = `rgba(${red},${green},${blue},${alpha})`;
                 ctx.lineWidth = lineWidth;
                 ctx.beginPath();
-                ctx.moveTo(a.x, a.y);
-                ctx.lineTo(b.x, b.y);
+                ctx.moveTo(a.screenX, a.screenY);
+                ctx.lineTo(b.screenX, b.screenY);
                 ctx.stroke();
             }
         }
@@ -752,6 +783,10 @@ function animate(now = 0) {
 
     for (const a of agents) {
         a.update();
+    }
+
+    const drawQueue = [...agents].sort((a, b) => a.z - b.z);
+    for (const a of drawQueue) {
         a.draw(glitchState.amount);
     }
 
